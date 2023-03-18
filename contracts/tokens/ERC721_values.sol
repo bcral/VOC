@@ -107,7 +107,7 @@ contract ERC721_values is Context, ERC165, IERC721, IERC721Metadata {
      * by default, can be overridden in child contracts.
      */
     function _baseURI() internal view virtual returns (string memory) {
-        return "";
+        return "yourwebsiteurl.com/";
     }
 
     /**

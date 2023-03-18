@@ -1,6 +1,8 @@
 require("@nomicfoundation/hardhat-toolbox");
 require('@openzeppelin/hardhat-upgrades');
 const ethers = require('ethers');
+// for using environment variables after the example wallet is drained
+require('dotenv').config();
 
 let mnemonic = "harsh buyer easy example grocery glass two forward album quality check text";
 let mnemonicWallet = ethers.Wallet.fromMnemonic(mnemonic);

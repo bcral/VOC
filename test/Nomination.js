@@ -41,7 +41,7 @@ describe("Nomination Token", function () {
                 expect(await nominationToken.balanceOf(addy2.address)).to.equal(5);
             });
         });
-        describe.only("Token transfer tests", function () {
+        describe("Token transfer tests", function () {
             it("Attempt to transfer tokens with transfer() function", async function () {
                 const { nominationToken, owner, addy1, addy2} = await loadFixture(
                     getContractAndArgs

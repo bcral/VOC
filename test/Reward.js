@@ -14,7 +14,7 @@ describe("Reward Token", function () {
         const RewardToken = await ethers.getContractFactory("RewardToken");
         const rewardToken = await RewardToken.deploy();
 
-        return { rewardToken, owner, addy1 };
+        return { rewardToken, owner, addy1, addy2, addy3 };
     }
   
     describe("Reward token contract tests", function () {
@@ -27,15 +27,34 @@ describe("Reward Token", function () {
                 expect(await rewardToken.owner()).to.equal(owner.address);
             });
         });
+        describe("Token mint tests", function () {
+            it("Should mint 5 tokens to both addresses.", async function () {
+                const { rewardToken, owner, addy1, addy2, addy3 } = await loadFixture(
+                    getContractAndArgs
+                );
+                // Mint mimics a nomination from the logic contract
+                // So the nominator and nominated are both minted tokens
+                await rewardToken.connect(owner).mint(5, addy1.address, addy2.address);
+        
+                expect(await rewardToken.balanceOf(addy1.address)).to.equal(5);
+                expect(await rewardToken.balanceOf(addy2.address)).to.equal(5);
+                expect(await rewardToken.balanceOf(addy3.address)).to.equal(0);
+            });
+        });
         describe("Token transfer tests", function () {
-            it("Should do whatever it does", async function () {
-                const { rewardToken, owner, addy1 } = await loadFixture(
+            it("Should not be able to be transferred by anyone.", async function () {
+                const { rewardToken, owner, addy1, addy2 } = await loadFixture(
                     getContractAndArgs
                 );
 
-                
+                await rewardToken.connect(owner).mint(5, addy1.address, addy2.address);
+
+                // Attempt to transfer tokens shouldn't panic, but shouldn't actually transfer any
+                // tokens, because they cannot be transferred - only spent.
+                await rewardToken.connect(addy1).transferFrom(addy1.address, addy2.address, 3);
         
-                expect(await rewardToken.owner()).to.equal(owner.address);
+                expect(await rewardToken.balanceOf(addy1.address)).to.equal(5);
+                expect(await rewardToken.balanceOf(addy2.address)).to.equal(5);
             });
         });
     });

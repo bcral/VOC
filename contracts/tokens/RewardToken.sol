@@ -11,11 +11,19 @@ contract RewardToken is ERC20, Ownable {
     address admin;
 
     constructor() ERC20("FoundryRewardToken", "FRT") {
+        admin = msg.sender;
     }
 
-    function claim(address newOwner) public {
-        // require(admin == address(0), "admin role is already claimed. But feel free to try again?");
-        admin = newOwner;
+    // Transfer stuff to make stuff not work like stuff is supposed to work and stuff
+    function transfer(address to, uint256 amount) public override returns (bool) {
+        // Do nothing at all.
+        return true;
+    }
+
+    // TransferFrom stuff to make stuff not work like stuff is supposed to work and stuff
+    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+        // Do nothing at all.
+        return true;
     }
 
     function mint(uint256 amount, address toAddress, address fromAddress) public {
