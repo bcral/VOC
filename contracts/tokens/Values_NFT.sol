@@ -18,8 +18,8 @@ contract Values_NFT is ERC721_values, Ownable {
     function mintNFT(address recipient, uint id)
         public onlyOwner
     {
+        require(!super._exists(id), "This token already exists");
         _mint(recipient, id);
         // Set if we have time
-        // _setTokenURI(1, tokenURI);
     }
 }

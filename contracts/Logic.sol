@@ -4,9 +4,11 @@ pragma solidity ^0.8.0;
 
 // Import Ownable from the OpenZeppelin Contracts library
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./interfaces/IERC721.sol";
 import "./interfaces/IERC20_nomination.sol";
 import "./interfaces/IERC20_reward.sol";
+import "./tokens/NominationToken.sol";
+import "./tokens/RewardToken.sol";
+import "./tokens/Values_NFT.sol";
 
 // TODO add access controls if time allows.
 contract Logic is Ownable {
@@ -21,7 +23,7 @@ contract Logic is Ownable {
         RocketToTheMoon
     }
 
-    address[] public valuesArray;
+    Values_NFT public valuesNFT;
     IERC721 public nftContract;
 
     // FT contracts
@@ -32,10 +34,10 @@ contract Logic is Ownable {
     // log of all users' value nominations in this epoch
     mapping(address => mapping(uint8 => uint256)) public log;
 
-    // Nomination token values defaulted to 5
-    uint256 newNomTokensAmount = 5;
+    // Nomination token values (defaulted to 5)
+    uint256 newNomTokensAmount;
     uint256 epochTime; // blocks?  timestamp?
-
+    
     // whitelist of all employees in organization
     mapping(address => bool) public whitelist;
 
@@ -43,24 +45,27 @@ contract Logic is Ownable {
     address[] public whitelistArray;
 
     // Events:
-    event NewNomination(address _nominated, address nominator, uint8 _value, uint256 _amount, string message);
+    event NewNomination(address _nominated, address nominator, string _value, uint256 _amount, string message);
 
     // Pass all contracts for FT, NFT addresses
-    constructor(address[] memory valuesNFTs, address _nomTokens, address _reTokens) {
-        valuesArray = valuesNFTs;
+    constructor(string memory _name, string memory _symbol) {
 
-        nominationTokens = IERC20_nomination(_nomTokens);
-        rewardTokens = IERC20_reward(_reTokens);
-    }
+        Values_NFT valuesNFTContract = new Values_NFT(_name, _symbol);
+        NominationToken nomToken = new NominationToken();
+        RewardToken rewToken = new RewardToken();
 
-    // Function for initializing all dummy data for hackathon demo
-    function initialize() onlyOwner public {
-        // Add a bunch of dummy data to populate everything for hackathon demo
-        // Give this contract sole transfer rights for NFTs
-        // It's super secure.  Don't worry about it.
-        for (uint8 i = 0; i < valuesArray.length; i++) {
-            IERC721(valuesArray[i]).addAdmin(address(this));
-        }
+        valuesNFT = Values_NFT(address(valuesNFTContract));
+        nominationTokens = IERC20_nomination(address(nomToken));
+        rewardTokens = IERC20_reward(address(rewToken));
+
+        valuesNFT.mintNFT(msg.sender, 1);
+        valuesNFT.mintNFT(msg.sender, 2);
+        valuesNFT.mintNFT(msg.sender, 3);
+        valuesNFT.mintNFT(msg.sender, 4);
+        valuesNFT.mintNFT(msg.sender, 5);
+        valuesNFT.mintNFT(msg.sender, 6);
+
+        newNomTokensAmount = 5;
     }
 
     // ***************************************************************************************
@@ -81,15 +86,15 @@ contract Logic is Ownable {
         }
     }
 
-    // if time allows, restrict to onlyOwner
-    function addToWhitelist(address addy) public {
+    // Only callable by the admin
+    function addToWhitelist(address addy) onlyOwner public {
         require(!onWhitelist(addy), "This address is already whitelisted");
         whitelist[addy] = true;
         whitelistArray.push(addy);
     }
 
     // if time allows, restrict to onlyOwner
-    function removeFromWhitelist(address addy) _onWhitelist(addy) public {
+    function removeFromWhitelist(address addy) onlyOwner _onWhitelist(addy) public {
         whitelist[addy] = false;
         // This part sucks. Loops in Solidity suck.
         for (uint256 i = 0; i < whitelistArray.length; i++) {
@@ -108,7 +113,7 @@ contract Logic is Ownable {
     // Used by admin to generate new nomination tokens at whatever interval
     // Add access controls if time
     // Add limits for how often this can happen if time
-    function addNomTokens() public {
+    function addNomTokens() onlyOwner public {
         nominationTokens.mint(newNomTokensAmount, whitelistArray);
     }
 
@@ -118,7 +123,7 @@ contract Logic is Ownable {
     }
 
     // Requires calling address to first approve transfer of at least <amount> to this contract
-    function nominate(address toAddress, uint256 amount, uint8 value, string memory message) public {
+    function nominate(address toAddress, uint256 amount, uint8 value, string memory message) _onWhitelist(toAddress) public {
         // require nomination tokens
         require(nominationTokens.balanceOf(msg.sender) >= amount, "You don't have enough tokens. Try being a better person?");
         // check that <value> exists
@@ -128,9 +133,9 @@ contract Logic is Ownable {
         // mint <amount> of Reward Token (FT) to toAddress
         rewardTokens.mint(amount, toAddress, msg.sender);
         // burn nomination tokens that were just recieved
-        nominationTokens.burn(address(this), amount);
+        nominationTokens.burn(msg.sender, amount);
         // emit nomination event with caller's address, <value>, and <amount>
-        emit NewNomination(toAddress, msg.sender, value, amount, message);
+        emit NewNomination(toAddress, msg.sender, getValuesByUint(Values(value)), amount, message);
     }
 
     // ***************************************************************************************
@@ -148,16 +153,33 @@ contract Logic is Ownable {
     // ***************************************************************************************
 
     // if time allows, restrict to onlyOwner
-    function transferValueNFT(uint8 value, address toAddress) _onWhitelist(toAddress) public {
+    function transferValueNFT(uint8 value, address from, address to) onlyOwner _onWhitelist(to) public {
         // call NFT contract by value and transfer to <toAddress>
-        nftContract = IERC721(getNFTAddress(value));
+        nftContract = IERC721(valuesNFT);
+        require(nftContract.balanceOf(from) > 0, "'from' address doesn't have a balance");
+        require(nftContract.ownerOf(value) == from, "'from' address doesn't currently have this value NFT");
+        nftContract.transferFrom(from, to, value);
     }
 
     // ***************************************************************************************
     // Random stuff
     // ***************************************************************************************
 
-    function getNFTAddress(uint8 value) internal view returns (address) {
-        return valuesArray[value];
+    function getValuesByUint(Values value) internal pure returns (string memory valueString) {
+        if (value == Values.ChopTheWood) {
+            valueString = "Chop The Wood";
+        } else if (value == Values.ParachuteMind) {
+            valueString = "Parachute Mind";
+        } else if (value == Values.BendDontBreak) {
+            valueString = "Bend, Don't Break";
+        } else if (value == Values.PoolTogether) {
+            valueString = "Pool Together";
+        } else if (value == Values.NoSuitsRequired) {
+            valueString = "No Suits Required";
+        } else if (value == Values.RocketToTheMoon) {
+            valueString = "Rocket To The Moon";
+        } else {
+            valueString = "We don't value that here";
+        }
     }
 }

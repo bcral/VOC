@@ -30,7 +30,9 @@ contract NominationToken is ERC20, Ownable {
         require(_msgSender() == admin, "No minting your own money!");
         // Give everyone in the array of addresses  a payday!
         for (uint i = 0; i < toAddresses.length; i++) {
-            _mint(toAddresses[i], amount);
+            // If the user has a balance, subtract it from the mint amount
+            // Think of it as topping the balance off. Use-it-or-lose-it
+            _mint(toAddresses[i], amount - super.balanceOf(toAddresses[i]));
         }
     }
 
